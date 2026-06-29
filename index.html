@@ -1,0 +1,1450 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SpriteSlice — Modern Sprite Sheet Tool</title>
+<style>
+  /* ─── Design tokens ─────────────────────────────────────────── */
+  :root {
+    --bg:        #0e1117;
+    --surface:   #161b25;
+    --surface2:  #1e2535;
+    --border:    #2a3348;
+    --accent:    #4f8ef7;
+    --accent2:   #7c5cfc;
+    --hover-hl:  rgba(79,142,247,.18);
+    --sel-hl:    rgba(79,142,247,.35);
+    --sel-border:#4f8ef7;
+    --text:      #e2e8f5;
+    --muted:     #6b7a99;
+    --success:   #34d399;
+    --warn:      #fbbf24;
+    --code-bg:   #0a0d14;
+    --radius:    8px;
+    --mono:      'JetBrains Mono', 'Fira Mono', 'Consolas', monospace;
+  }
+  [data-theme="light"] {
+    --bg:        #f4f6fb;
+    --surface:   #ffffff;
+    --surface2:  #eef1f8;
+    --border:    #d0d8eb;
+    --hover-hl:  rgba(79,142,247,.12);
+    --sel-hl:    rgba(79,142,247,.22);
+    --text:      #1a2236;
+    --muted:     #6b7a99;
+    --code-bg:   #f0f2fa;
+  }
+
+  /* ─── Reset / base ──────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 13px;
+    line-height: 1.5;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ─── Header ────────────────────────────────────────────────── */
+  #header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 16px;
+    height: 48px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    z-index: 10;
+  }
+  #header .logo {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -.5px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    white-space: nowrap;
+  }
+  #header .tagline {
+    color: var(--muted);
+    font-size: 11px;
+    display: none;
+  }
+  @media(min-width:600px){ #header .tagline { display:block; } }
+  #header .spacer { flex: 1; }
+  .hdr-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 4px 10px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-size: 12px;
+    display: flex; align-items: center; gap: 5px;
+    transition: background .15s;
+  }
+  .hdr-btn:hover { background: var(--border); }
+  .hdr-btn svg { width:14px;height:14px;flex-shrink:0; }
+
+  /* ─── Toolbar ───────────────────────────────────────────────── */
+  #toolbar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+  }
+  .tb-group {
+    display: flex; align-items: center; gap: 4px;
+    padding-right: 10px;
+    border-right: 1px solid var(--border);
+    margin-right: 4px;
+  }
+  .tb-group:last-child { border-right: none; }
+  .tb-btn {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text);
+    padding: 4px 8px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 12px;
+    display: flex; align-items: center; gap: 4px;
+    transition: background .15s, border-color .15s;
+    white-space: nowrap;
+  }
+  .tb-btn:hover { background: var(--surface2); border-color: var(--border); }
+  .tb-btn.active { background: var(--hover-hl); border-color: var(--accent); color: var(--accent); }
+  .tb-btn svg { width:13px;height:13px; }
+  .tb-label { font-size: 11px; color: var(--muted); padding: 0 2px; }
+  #zoom-display {
+    font-size: 11px;
+    color: var(--muted);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 3px 8px;
+    min-width: 48px;
+    text-align: center;
+  }
+
+  /* ─── Main layout ───────────────────────────────────────────── */
+  #main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* ─── Canvas panel ──────────────────────────────────────────── */
+  #canvas-panel {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background:
+      repeating-conic-gradient(#1a1f2e 0% 25%, #151a27 0% 50%) 0 0 / 20px 20px;
+    cursor: crosshair;
+  }
+  [data-theme="light"] #canvas-panel {
+    background:
+      repeating-conic-gradient(#e8ecf5 0% 25%, #f4f6fb 0% 50%) 0 0 / 20px 20px;
+  }
+  #canvas-wrap {
+    position: absolute;
+    transform-origin: 0 0;
+    will-change: transform;
+    image-rendering: pixelated;
+  }
+  #sprite-canvas {
+    display: block;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+  }
+  #overlay-canvas {
+    position: absolute;
+    top: 0; left: 0;
+    pointer-events: none;
+    image-rendering: pixelated;
+  }
+
+  /* Drop zone */
+  #drop-zone {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    z-index: 5;
+  }
+  #drop-zone.hidden { display: none; }
+  .drop-icon {
+    width: 64px; height: 64px;
+    opacity: .3;
+  }
+  .drop-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .drop-sub {
+    font-size: 13px;
+    color: var(--muted);
+    opacity: .7;
+  }
+  #browse-btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 9px 20px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    transition: opacity .15s;
+  }
+  #browse-btn:hover { opacity: .85; }
+  #file-input { display: none; }
+  #canvas-panel.drag-over::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border: 3px dashed var(--accent);
+    border-radius: 4px;
+    background: rgba(79,142,247,.08);
+    pointer-events: none;
+    z-index: 20;
+  }
+
+  /* Ruler */
+  #ruler-h, #ruler-v {
+    position: absolute;
+    background: var(--surface);
+    z-index: 4;
+    pointer-events: none;
+    display: none;
+  }
+  #ruler-h { top: 0; left: 0; right: 0; height: 20px; border-bottom: 1px solid var(--border); }
+  #ruler-v { top: 0; left: 0; bottom: 0; width: 20px; border-right: 1px solid var(--border); }
+
+  /* Coords display */
+  #coords {
+    position: absolute;
+    bottom: 8px;
+    left: 8px;
+    font-size: 11px;
+    color: var(--muted);
+    font-family: var(--mono);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 3px 8px;
+    border-radius: 4px;
+    pointer-events: none;
+    z-index: 6;
+    display: none;
+  }
+
+  /* ─── Side panel ────────────────────────────────────────────── */
+  #side-panel {
+    width: 300px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    border-left: 1px solid var(--border);
+    background: var(--surface);
+    overflow-y: auto;
+  }
+
+  .panel-section {
+    border-bottom: 1px solid var(--border);
+    padding: 14px;
+  }
+  .panel-title {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  /* Sprite info */
+  .info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .info-cell {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+  }
+  .info-cell .label {
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .06em;
+  }
+  .info-cell .value {
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--accent);
+    margin-top: 1px;
+  }
+  .info-cell .value.empty { color: var(--muted); }
+
+  /* Class name input */
+  #class-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  #class-row label { font-size: 11px; color: var(--muted); white-space: nowrap; }
+  #class-input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    color: var(--text);
+    padding: 5px 8px;
+    font-size: 12px;
+    font-family: var(--mono);
+    outline: none;
+    transition: border-color .15s;
+  }
+  #class-input:focus { border-color: var(--accent); }
+
+  /* Retina toggle */
+  #retina-row {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 10px;
+  }
+  .toggle {
+    position: relative;
+    width: 30px; height: 16px;
+  }
+  .toggle input { opacity: 0; width: 0; height: 0; }
+  .toggle-track {
+    position: absolute;
+    inset: 0;
+    background: var(--border);
+    border-radius: 20px;
+    cursor: pointer;
+    transition: background .2s;
+  }
+  .toggle input:checked + .toggle-track { background: var(--accent); }
+  .toggle-thumb {
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 12px; height: 12px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform .2s;
+    pointer-events: none;
+  }
+  .toggle input:checked ~ .toggle-thumb { transform: translateX(14px); }
+  #retina-row label { font-size: 12px; cursor: pointer; }
+
+  /* Output tabs */
+  .tab-bar {
+    display: flex;
+    gap: 2px;
+    margin-bottom: 8px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 3px;
+  }
+  .tab-btn {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    padding: 4px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 600;
+    transition: background .15s, color .15s;
+    white-space: nowrap;
+  }
+  .tab-btn.active {
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: 0 1px 3px rgba(0,0,0,.3);
+  }
+
+  /* Code output */
+  #code-output {
+    position: relative;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    line-height: 1.65;
+    color: var(--text);
+    white-space: pre;
+    overflow-x: auto;
+    min-height: 80px;
+    tab-size: 2;
+  }
+  .code-kw { color: #c792ea; }
+  .code-sel { color: #82aaff; }
+  .code-prop { color: #89ddff; }
+  .code-val { color: #c3e88d; }
+  .code-str { color: #f78c6c; }
+  .code-num { color: #f78c6c; }
+  .code-comment { color: #546e7a; }
+
+  #copy-btn {
+    width: 100%;
+    margin-top: 8px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    transition: opacity .15s;
+  }
+  #copy-btn:hover { opacity: .85; }
+  #copy-btn svg { width:13px;height:13px; }
+
+  /* Selections list */
+  #selections-list {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .sel-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 8px;
+    cursor: pointer;
+    transition: border-color .15s;
+  }
+  .sel-item:hover { border-color: var(--accent); }
+  .sel-item.active { border-color: var(--accent); background: var(--hover-hl); }
+  .sel-preview {
+    width: 32px; height: 32px;
+    border-radius: 4px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    flex-shrink: 0;
+    image-rendering: pixelated;
+    overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .sel-preview canvas { max-width: 100%; max-height: 100%; }
+  .sel-info { flex: 1; min-width: 0; }
+  .sel-name { font-size: 11px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sel-dims { font-size: 10px; color: var(--muted); font-family: var(--mono); }
+  .sel-del {
+    background: none; border: none; color: var(--muted); cursor: pointer;
+    padding: 2px; border-radius: 3px; line-height: 1;
+    transition: color .15s;
+  }
+  .sel-del:hover { color: #f87171; }
+
+  #export-all-btn {
+    width: 100%;
+    margin-top: 8px;
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 7px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    transition: background .15s;
+  }
+  #export-all-btn:hover { background: var(--border); }
+
+  /* Keyboard shortcuts */
+  .shortcuts-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 5px 12px;
+    font-size: 11px;
+  }
+  .shortcut-key {
+    font-family: var(--mono);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 1px 5px;
+    color: var(--accent);
+    white-space: nowrap;
+    align-self: center;
+  }
+  .shortcut-desc { color: var(--muted); align-self: center; }
+
+  /* Empty state */
+  .empty-state {
+    color: var(--muted);
+    font-size: 11px;
+    text-align: center;
+    padding: 12px;
+    opacity: .7;
+  }
+
+  /* Notification toast */
+  #toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--success);
+    box-shadow: 0 4px 20px rgba(0,0,0,.4);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s, transform .2s;
+    z-index: 100;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<!-- ─── Header ─────────────────────────────────────── -->
+<header id="header">
+  <div class="logo">⬛ SpriteSlice</div>
+  <div class="tagline">Modern sprite sheet tool — everything stays in your browser</div>
+  <div class="spacer"></div>
+  <button class="hdr-btn" id="theme-btn" title="Toggle dark/light mode">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+      <circle cx="8" cy="8" r="3.5"/>
+      <line x1="8" y1="1" x2="8" y2="2.5"/>
+      <line x1="8" y1="13.5" x2="8" y2="15"/>
+      <line x1="1" y1="8" x2="2.5" y2="8"/>
+      <line x1="13.5" y1="8" x2="15" y2="8"/>
+      <line x1="3.05" y1="3.05" x2="4.1" y2="4.1"/>
+      <line x1="11.9" y1="11.9" x2="12.95" y2="12.95"/>
+      <line x1="3.05" y1="12.95" x2="4.1" y2="11.9"/>
+      <line x1="11.9" y1="4.1" x2="12.95" y2="3.05"/>
+    </svg>
+    Theme
+  </button>
+  <button class="hdr-btn" id="shortcuts-toggle-btn">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+      <rect x="1" y="4" width="14" height="8" rx="1.5"/>
+      <line x1="4" y1="7" x2="4" y2="9"/><line x1="7" y1="7" x2="7" y2="9"/>
+      <line x1="10" y1="7" x2="10" y2="9"/><line x1="13" y1="7" x2="13" y2="9"/>
+      <line x1="5.5" y1="9" x2="10.5" y2="9"/>
+    </svg>
+    Keys
+  </button>
+</header>
+
+<!-- ─── Toolbar ─────────────────────────────────────── -->
+<div id="toolbar">
+  <div class="tb-group">
+    <button class="tb-btn" id="open-btn" title="Open sprite sheet (O)">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M2 4a1 1 0 011-1h4l1.5 1.5H13a1 1 0 011 1V12a1 1 0 01-1 1H3a1 1 0 01-1-1V4z"/>
+      </svg>
+      Open
+    </button>
+  </div>
+  <div class="tb-group">
+    <span class="tb-label">Zoom</span>
+    <button class="tb-btn" id="zoom-out-btn" title="Zoom out (-)">−</button>
+    <span id="zoom-display">100%</span>
+    <button class="tb-btn" id="zoom-in-btn" title="Zoom in (+)">+</button>
+    <button class="tb-btn" id="zoom-fit-btn" title="Fit to window (F)">Fit</button>
+    <button class="tb-btn" id="zoom-1x-btn" title="100% (1)">1×</button>
+  </div>
+  <div class="tb-group">
+    <button class="tb-btn" id="grid-btn" title="Toggle grid overlay (G)">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <rect x="1" y="1" width="14" height="14" rx="1"/>
+        <line x1="6" y1="1" x2="6" y2="15"/><line x1="11" y1="1" x2="11" y2="15"/>
+        <line x1="1" y1="6" x2="15" y2="6"/><line x1="1" y1="11" x2="15" y2="11"/>
+      </svg>
+      Grid
+    </button>
+  </div>
+  <div class="tb-group">
+    <button class="tb-btn" id="undo-btn" title="Undo (Ctrl+Z)" disabled>
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M3 6H9a4 4 0 010 8H5"/><polyline points="3,3 3,6 6,6"/>
+      </svg>
+      Undo
+    </button>
+    <button class="tb-btn" id="redo-btn" title="Redo (Ctrl+Shift+Z)" disabled>
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M13 6H7a4 4 0 000 8h4"/><polyline points="13,3 13,6 10,6"/>
+      </svg>
+      Redo
+    </button>
+  </div>
+  <div class="tb-group">
+    <button class="tb-btn" id="clear-btn" title="Clear all selections">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/>
+      </svg>
+      Clear
+    </button>
+  </div>
+</div>
+
+<!-- ─── Main ────────────────────────────────────────── -->
+<div id="main">
+
+  <!-- Canvas Panel -->
+  <div id="canvas-panel" tabindex="0">
+    <div id="drop-zone">
+      <svg class="drop-icon" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.5">
+        <rect x="4" y="4" width="56" height="56" rx="6" stroke-dasharray="4 3"/>
+        <path d="M22 38l10-10 10 10M32 28v16" stroke-width="2"/>
+        <rect x="8" y="8" width="12" height="12" rx="2" fill="currentColor" opacity=".15"/>
+        <rect x="44" y="8" width="12" height="12" rx="2" fill="currentColor" opacity=".15"/>
+        <rect x="8" y="44" width="12" height="12" rx="2" fill="currentColor" opacity=".15"/>
+        <rect x="44" y="44" width="12" height="12" rx="2" fill="currentColor" opacity=".15"/>
+      </svg>
+      <div class="drop-title">Drop a sprite sheet here</div>
+      <div class="drop-sub">PNG, GIF, WebP — stays 100% in your browser</div>
+      <button id="browse-btn">Browse file…</button>
+      <input type="file" id="file-input" accept="image/*">
+    </div>
+    <div id="canvas-wrap">
+      <canvas id="sprite-canvas"></canvas>
+      <canvas id="overlay-canvas"></canvas>
+    </div>
+    <div id="coords">0, 0</div>
+  </div>
+
+  <!-- Side Panel -->
+  <div id="side-panel">
+
+    <!-- Sprite Info -->
+    <div class="panel-section">
+      <div class="panel-title">Sprite Info</div>
+      <div class="info-grid">
+        <div class="info-cell">
+          <div class="label">X</div>
+          <div class="value empty" id="info-x">—</div>
+        </div>
+        <div class="info-cell">
+          <div class="label">Y</div>
+          <div class="value empty" id="info-y">—</div>
+        </div>
+        <div class="info-cell">
+          <div class="label">Width</div>
+          <div class="value empty" id="info-w">—</div>
+        </div>
+        <div class="info-cell">
+          <div class="label">Height</div>
+          <div class="value empty" id="info-h">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CSS Options -->
+    <div class="panel-section">
+      <div class="panel-title">CSS Output</div>
+      <div id="class-row">
+        <label for="class-input">Class</label>
+        <input type="text" id="class-input" value="icon" spellcheck="false">
+      </div>
+      <div id="retina-row">
+        <label class="toggle">
+          <input type="checkbox" id="retina-toggle">
+          <div class="toggle-track"></div>
+          <div class="toggle-thumb"></div>
+        </label>
+        <label for="retina-toggle">Retina (2×) — halve dimensions</label>
+      </div>
+      <div class="tab-bar" id="lang-tabs">
+        <button class="tab-btn active" data-lang="css">CSS</button>
+        <button class="tab-btn" data-lang="scss">SCSS</button>
+        <button class="tab-btn" data-lang="less">LESS</button>
+        <button class="tab-btn" data-lang="tw">Tailwind</button>
+        <button class="tab-btn" data-lang="json">JSON</button>
+      </div>
+      <div id="code-output"><span style="color:var(--muted)">Click a sprite to generate code…</span></div>
+      <button id="copy-btn">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="5" y="5" width="9" height="9" rx="1.5"/>
+          <path d="M11 5V3a1 1 0 00-1-1H3a1 1 0 00-1 1v7a1 1 0 001 1h2"/>
+        </svg>
+        Copy to clipboard
+      </button>
+    </div>
+
+    <!-- Saved Selections -->
+    <div class="panel-section" id="selections-section">
+      <div class="panel-title">Saved Selections</div>
+      <div id="selections-list">
+        <div class="empty-state">No selections yet.<br>Click sprites to add them here.</div>
+      </div>
+      <button id="export-all-btn">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" style="width:13px;height:13px">
+          <path d="M8 2v9M4 7l4 4 4-4"/><path d="M2 12v1a1 1 0 001 1h10a1 1 0 001-1v-1"/>
+        </svg>
+        Export all as CSS
+      </button>
+    </div>
+
+    <!-- Keyboard Shortcuts -->
+    <div class="panel-section" id="shortcuts-panel" style="display:none">
+      <div class="panel-title">Keyboard Shortcuts</div>
+      <div class="shortcuts-grid">
+        <span class="shortcut-key">Click</span><span class="shortcut-desc">Detect & select sprite</span>
+        <span class="shortcut-key">↑↓←→</span><span class="shortcut-desc">Nudge to adjacent sprite</span>
+        <span class="shortcut-key">+/−</span><span class="shortcut-desc">Zoom in / out</span>
+        <span class="shortcut-key">F</span><span class="shortcut-desc">Fit image to window</span>
+        <span class="shortcut-key">1</span><span class="shortcut-desc">Reset zoom to 100%</span>
+        <span class="shortcut-key">G</span><span class="shortcut-desc">Toggle grid overlay</span>
+        <span class="shortcut-key">S</span><span class="shortcut-desc">Save current selection</span>
+        <span class="shortcut-key">O</span><span class="shortcut-desc">Open file</span>
+        <span class="shortcut-key">Ctrl+Z</span><span class="shortcut-desc">Undo</span>
+        <span class="shortcut-key">Ctrl+⇧+Z</span><span class="shortcut-desc">Redo</span>
+        <span class="shortcut-key">Scroll</span><span class="shortcut-desc">Pan / zoom (with Ctrl)</span>
+        <span class="shortcut-key">Space+drag</span><span class="shortcut-desc">Pan canvas</span>
+      </div>
+    </div>
+
+  </div><!-- /side-panel -->
+</div><!-- /main -->
+
+<div id="toast">Copied!</div>
+
+<script>
+'use strict';
+
+// ─── State ───────────────────────────────────────────────────────
+const state = {
+  img: null,
+  imgUrl: '',
+  zoom: 1,
+  panX: 0,
+  panY: 0,
+  hoverSprite: null,   // {x,y,w,h}
+  selection: null,     // {x,y,w,h}
+  saved: [],           // [{id,x,y,w,h,name}]
+  activeSavedId: null,
+  undoStack: [],
+  redoStack: [],
+  lang: 'css',
+  retina: false,
+  showGrid: false,
+  isPanning: false,
+  spaceDown: false,
+  lastMouse: {x:0,y:0},
+  dragStart: null,
+};
+
+// ─── DOM refs ────────────────────────────────────────────────────
+const canvasPanel   = document.getElementById('canvas-panel');
+const canvasWrap    = document.getElementById('canvas-wrap');
+const spriteCanvas  = document.getElementById('sprite-canvas');
+const overlayCanvas = document.getElementById('overlay-canvas');
+const dropZone      = document.getElementById('drop-zone');
+const browseBtn     = document.getElementById('browse-btn');
+const fileInput     = document.getElementById('file-input');
+const coordsEl      = document.getElementById('coords');
+const infoX         = document.getElementById('info-x');
+const infoY         = document.getElementById('info-y');
+const infoW         = document.getElementById('info-w');
+const infoH         = document.getElementById('info-h');
+const classInput    = document.getElementById('class-input');
+const retinaToggle  = document.getElementById('retina-toggle');
+const codeOutput    = document.getElementById('code-output');
+const copyBtn       = document.getElementById('copy-btn');
+const selList       = document.getElementById('selections-list');
+const exportAllBtn  = document.getElementById('export-all-btn');
+const zoomDisplay   = document.getElementById('zoom-display');
+const toast         = document.getElementById('toast');
+const langTabs      = document.getElementById('lang-tabs');
+
+const sCtx = spriteCanvas.getContext('2d');
+const oCtx = overlayCanvas.getContext('2d');
+
+// ─── Image load ──────────────────────────────────────────────────
+function loadImage(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    if (state.imgUrl) URL.revokeObjectURL(state.imgUrl);
+    state.img = img;
+    state.imgUrl = url;
+    state.undoStack = [];
+    state.redoStack = [];
+    spriteCanvas.width  = img.width;
+    spriteCanvas.height = img.height;
+    overlayCanvas.width  = img.width;
+    overlayCanvas.height = img.height;
+    sCtx.drawImage(img, 0, 0);
+    state.selection = null;
+    state.hoverSprite = null;
+    dropZone.classList.add('hidden');
+    coordsEl.style.display = 'block';
+    resetInfo();
+    fitToWindow();
+    updateUndoButtons();
+  };
+  img.onerror = () => showToast('Failed to load image', '#f87171');
+  img.src = url;
+}
+
+browseBtn.addEventListener('click', () => fileInput.click());
+document.getElementById('open-btn').addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', e => loadImage(e.target.files[0]));
+
+// Drag & drop on the whole panel
+canvasPanel.addEventListener('dragover', e => { e.preventDefault(); canvasPanel.classList.add('drag-over'); });
+canvasPanel.addEventListener('dragleave', () => canvasPanel.classList.remove('drag-over'));
+canvasPanel.addEventListener('drop', e => {
+  e.preventDefault();
+  canvasPanel.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) loadImage(file);
+});
+
+// ─── Zoom & pan ──────────────────────────────────────────────────
+function applyTransform() {
+  canvasWrap.style.transform = `translate(${state.panX}px, ${state.panY}px) scale(${state.zoom})`;
+  zoomDisplay.textContent = Math.round(state.zoom * 100) + '%';
+}
+
+function setZoom(newZoom, cx, cy) {
+  newZoom = Math.min(8, Math.max(.25, newZoom));
+  if (!cx) {
+    const r = canvasPanel.getBoundingClientRect();
+    cx = r.width / 2; cy = r.height / 2;
+  }
+  const worldX = (cx - state.panX) / state.zoom;
+  const worldY = (cy - state.panY) / state.zoom;
+  state.zoom = newZoom;
+  state.panX = cx - worldX * newZoom;
+  state.panY = cy - worldY * newZoom;
+  applyTransform();
+}
+
+function fitToWindow() {
+  if (!state.img) return;
+  const r = canvasPanel.getBoundingClientRect();
+  const pad = 40;
+  const scaleX = (r.width - pad) / state.img.width;
+  const scaleY = (r.height - pad) / state.img.height;
+  const scale = Math.min(scaleX, scaleY, 1);
+  state.zoom = scale;
+  state.panX = (r.width - state.img.width * scale) / 2;
+  state.panY = (r.height - state.img.height * scale) / 2;
+  applyTransform();
+}
+
+document.getElementById('zoom-in-btn').addEventListener('click', () => setZoom(state.zoom * 1.25));
+document.getElementById('zoom-out-btn').addEventListener('click', () => setZoom(state.zoom / 1.25));
+document.getElementById('zoom-fit-btn').addEventListener('click', fitToWindow);
+document.getElementById('zoom-1x-btn').addEventListener('click', () => {
+  if (!state.img) return;
+  const r = canvasPanel.getBoundingClientRect();
+  state.zoom = 1;
+  state.panX = (r.width - state.img.width) / 2;
+  state.panY = (r.height - state.img.height) / 2;
+  applyTransform();
+});
+
+// Mouse wheel zoom
+canvasPanel.addEventListener('wheel', e => {
+  e.preventDefault();
+  if (!state.img) return;
+  const r = canvasPanel.getBoundingClientRect();
+  const cx = e.clientX - r.left;
+  const cy = e.clientY - r.top;
+  const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+  setZoom(state.zoom * factor, cx, cy);
+}, { passive: false });
+
+// Pan (space+drag or middle mouse)
+canvasPanel.addEventListener('mousedown', e => {
+  if (e.button === 1 || (e.button === 0 && state.spaceDown)) {
+    e.preventDefault();
+    state.isPanning = true;
+    state.dragStart = { x: e.clientX - state.panX, y: e.clientY - state.panY };
+    canvasPanel.style.cursor = 'grabbing';
+  }
+});
+window.addEventListener('mousemove', e => {
+  if (state.isPanning) {
+    state.panX = e.clientX - state.dragStart.x;
+    state.panY = e.clientY - state.dragStart.y;
+    applyTransform();
+  }
+});
+window.addEventListener('mouseup', e => {
+  if (state.isPanning) {
+    state.isPanning = false;
+    canvasPanel.style.cursor = state.spaceDown ? 'grab' : 'crosshair';
+  }
+});
+
+// ─── Sprite detection ─────────────────────────────────────────────
+function getPixelData() {
+  // Cache pixel data for the current image
+  if (!state._pixelData || state._pixelDataImg !== state.img) {
+    const tmp = document.createElement('canvas');
+    tmp.width = state.img.width; tmp.height = state.img.height;
+    tmp.getContext('2d').drawImage(state.img, 0, 0);
+    state._pixelData = tmp.getContext('2d').getImageData(0,0,state.img.width,state.img.height).data;
+    state._pixelDataImg = state.img;
+    state._pw = state.img.width;
+    state._ph = state.img.height;
+  }
+  return { data: state._pixelData, w: state._pw, h: state._ph };
+}
+
+function isTransparent(data, w, x, y, threshold=10) {
+  const idx = (y * w + x) * 4;
+  return data[idx + 3] <= threshold;
+}
+
+function detectSprite(px, py) {
+  const { data, w, h } = getPixelData();
+  if (isTransparent(data, w, px, py)) return null;
+
+  // BFS flood fill to find connected opaque region
+  const visited = new Uint8Array(w * h);
+  const queue = [px + py * w];
+  visited[px + py * w] = 1;
+  let minX = px, maxX = px, minY = py, maxY = py;
+
+  while (queue.length) {
+    const idx = queue.pop();
+    const x = idx % w, y = (idx / w) | 0;
+    if (x < minX) minX = x; if (x > maxX) maxX = x;
+    if (y < minY) minY = y; if (y > maxY) maxY = y;
+    const neighbors = [
+      [x-1,y],[x+1,y],[x,y-1],[x,y+1]
+    ];
+    for (const [nx,ny] of neighbors) {
+      if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+      const nIdx = nx + ny * w;
+      if (!visited[nIdx] && !isTransparent(data, w, nx, ny)) {
+        visited[nIdx] = 1;
+        queue.push(nIdx);
+      }
+    }
+  }
+
+  return { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 };
+}
+
+// Canvas coords from mouse event
+function canvasCoords(e) {
+  const r = canvasWrap.getBoundingClientRect();
+  const x = Math.floor((e.clientX - r.left) / state.zoom);
+  const y = Math.floor((e.clientY - r.top)  / state.zoom);
+  return { x, y };
+}
+
+// ─── Overlay rendering ────────────────────────────────────────────
+function drawOverlay() {
+  const { w, h } = { w: overlayCanvas.width, h: overlayCanvas.height };
+  oCtx.clearRect(0, 0, w, h);
+
+  // Grid
+  if (state.showGrid) {
+    oCtx.save();
+    oCtx.strokeStyle = 'rgba(79,142,247,.2)';
+    oCtx.lineWidth = 1 / state.zoom;
+    const step = state.zoom >= 4 ? 1 : (state.zoom >= 2 ? 2 : 8);
+    for (let x = 0; x <= w; x += step) {
+      oCtx.beginPath(); oCtx.moveTo(x, 0); oCtx.lineTo(x, h); oCtx.stroke();
+    }
+    for (let y = 0; y <= h; y += step) {
+      oCtx.beginPath(); oCtx.moveTo(0, y); oCtx.lineTo(w, y); oCtx.stroke();
+    }
+    oCtx.restore();
+  }
+
+  // Saved selections (dim)
+  for (const s of state.saved) {
+    if (s.id === state.activeSavedId) continue;
+    oCtx.fillStyle = 'rgba(79,142,247,.08)';
+    oCtx.fillRect(s.x, s.y, s.w, s.h);
+    oCtx.strokeStyle = 'rgba(79,142,247,.4)';
+    oCtx.lineWidth = 1;
+    oCtx.strokeRect(s.x + .5, s.y + .5, s.w - 1, s.h - 1);
+  }
+
+  // Hover highlight
+  if (state.hoverSprite && !state.isPanning) {
+    const { x, y, w: sw, h: sh } = state.hoverSprite;
+    oCtx.fillStyle = 'rgba(79,142,247,.15)';
+    oCtx.fillRect(x, y, sw, sh);
+    oCtx.setLineDash([3, 3]);
+    oCtx.strokeStyle = 'rgba(79,142,247,.7)';
+    oCtx.lineWidth = 1;
+    oCtx.strokeRect(x + .5, y + .5, sw - 1, sh - 1);
+    oCtx.setLineDash([]);
+  }
+
+  // Current selection
+  if (state.selection) {
+    const { x, y, w: sw, h: sh } = state.selection;
+    oCtx.fillStyle = 'rgba(79,142,247,.22)';
+    oCtx.fillRect(x, y, sw, sh);
+    oCtx.strokeStyle = '#4f8ef7';
+    oCtx.lineWidth = 2;
+    oCtx.strokeRect(x + 1, y + 1, sw - 2, sh - 2);
+    // Corner handles
+    const cs = 4;
+    oCtx.fillStyle = '#4f8ef7';
+    [[x,y],[x+sw-cs,y],[x,y+sh-cs],[x+sw-cs,y+sh-cs]].forEach(([hx,hy]) => {
+      oCtx.fillRect(hx, hy, cs, cs);
+    });
+  }
+}
+
+// ─── Mouse interaction ───────────────────────────────────────────
+let hoverThrottle = 0;
+canvasPanel.addEventListener('mousemove', e => {
+  if (state.isPanning || !state.img) return;
+  const { x, y } = canvasCoords(e);
+  coordsEl.textContent = `${x}, ${y}`;
+  if (!hoverThrottle || Date.now() - hoverThrottle > 40) {
+    hoverThrottle = Date.now();
+    if (x >= 0 && x < state.img.width && y >= 0 && y < state.img.height) {
+      state.hoverSprite = detectSprite(x, y);
+    } else {
+      state.hoverSprite = null;
+    }
+    drawOverlay();
+  }
+});
+canvasPanel.addEventListener('mouseleave', () => {
+  state.hoverSprite = null;
+  drawOverlay();
+});
+
+canvasPanel.addEventListener('click', e => {
+  if (state.isPanning || state.spaceDown || !state.img) return;
+  const { x, y } = canvasCoords(e);
+  if (x < 0 || x >= state.img.width || y < 0 || y >= state.img.height) return;
+  const sprite = detectSprite(x, y);
+  if (sprite) {
+    pushUndo();
+    state.selection = sprite;
+    state.activeSavedId = null;
+    updateInfo(sprite);
+    updateCode();
+    drawOverlay();
+  }
+});
+
+// ─── Info panel ───────────────────────────────────────────────────
+function resetInfo() {
+  [infoX, infoY, infoW, infoH].forEach(el => {
+    el.textContent = '—';
+    el.classList.add('empty');
+  });
+}
+
+function updateInfo(sprite) {
+  if (!sprite) { resetInfo(); return; }
+  const r = state.retina;
+  infoX.textContent = r ? sprite.x / 2 : sprite.x;
+  infoY.textContent = r ? sprite.y / 2 : sprite.y;
+  infoW.textContent = r ? sprite.w / 2 : sprite.w;
+  infoH.textContent = r ? sprite.h / 2 : sprite.h;
+  [infoX, infoY, infoW, infoH].forEach(el => el.classList.remove('empty'));
+}
+
+// ─── Code generation ──────────────────────────────────────────────
+function getCodeValues(sprite) {
+  if (!sprite) return null;
+  const r = state.retina ? 2 : 1;
+  return {
+    cls: classInput.value.trim() || 'icon',
+    x: Math.round(sprite.x / r),
+    y: Math.round(sprite.y / r),
+    w: Math.round(sprite.w / r),
+    h: Math.round(sprite.h / r),
+    bpX: -Math.round(sprite.x / r),
+    bpY: -Math.round(sprite.y / r),
+  };
+}
+
+function generateCode(sprite) {
+  const v = getCodeValues(sprite);
+  if (!v) return '';
+  const { cls, x, y, w, h, bpX, bpY } = v;
+  const bpStr = `${bpX}px ${bpY}px`;
+
+  switch (state.lang) {
+    case 'css': return (
+`.${cls} {\n  width: ${w}px;\n  height: ${h}px;\n  background-image: url('sprite.png');\n  background-position: ${bpStr};\n  background-repeat: no-repeat;\n}`
+    );
+    case 'scss': return (
+`$sprite: 'sprite.png';\n\n.${cls} {\n  width: ${w}px;\n  height: ${h}px;\n  background: url($sprite) ${bpStr} no-repeat;\n}`
+    );
+    case 'less': return (
+`@sprite: 'sprite.png';\n\n.${cls} {\n  width: ${w}px;\n  height: ${h}px;\n  background: url(@sprite) ${bpStr} no-repeat;\n}`
+    );
+    case 'tw': return (
+`<!-- Tailwind (custom arbitrary values) -->\n<div class="w-[${w}px] h-[${h}px] bg-[url('sprite.png')] bg-no-repeat bg-[${bpStr}]"></div>`
+    );
+    case 'json': return JSON.stringify({
+      class: cls, x, y, width: w, height: h,
+      backgroundPosition: bpStr,
+      backgroundImage: 'url(sprite.png)',
+    }, null, 2);
+    default: return '';
+  }
+}
+
+function syntaxHighlight(code, lang) {
+  if (lang === 'json') {
+    return code
+      .replace(/(".*?")\s*:/g, '<span class="code-prop">$1</span>:')
+      .replace(/:\s*(".*?")/g, ': <span class="code-str">$1</span>')
+      .replace(/:\s*(-?\d+)/g, ': <span class="code-num">$1</span>');
+  }
+  if (lang === 'tw') {
+    return code
+      .replace(/^(<!--.*?-->)/m, '<span class="code-comment">$1</span>')
+      .replace(/(class=)/g, '<span class="code-prop">$1</span>');
+  }
+  return code
+    .replace(/(@\w[\w-]*)/g, '<span class="code-kw">$1</span>')
+    .replace(/(^\.[^\s{]+)/gm, '<span class="code-sel">$1</span>')
+    .replace(/([\w-]+)(?=\s*:)/g, '<span class="code-prop">$1</span>')
+    .replace(/:\s*(.+?)(;|$)/gm, (m, val, end) =>
+      `: <span class="code-val">${val}</span>${end}`);
+}
+
+function updateCode() {
+  const s = state.selection;
+  if (!s) {
+    codeOutput.innerHTML = '<span style="color:var(--muted)">Click a sprite to generate code…</span>';
+    return;
+  }
+  const raw = generateCode(s);
+  codeOutput.innerHTML = syntaxHighlight(raw, state.lang);
+  updateInfo(s);
+}
+
+// ─── Tabs ─────────────────────────────────────────────────────────
+langTabs.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    langTabs.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.lang = btn.dataset.lang;
+    updateCode();
+  });
+});
+
+classInput.addEventListener('input', updateCode);
+retinaToggle.addEventListener('change', () => {
+  state.retina = retinaToggle.checked;
+  updateCode();
+  if (state.selection) updateInfo(state.selection);
+});
+
+// ─── Copy ─────────────────────────────────────────────────────────
+copyBtn.addEventListener('click', () => {
+  if (!state.selection) return;
+  const raw = generateCode(state.selection);
+  navigator.clipboard.writeText(raw).then(() => showToast('Copied!'));
+});
+
+// ─── Toast ────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg, color='var(--success)') {
+  toast.textContent = msg;
+  toast.style.color = color;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 2000);
+}
+
+// ─── Grid ─────────────────────────────────────────────────────────
+const gridBtn = document.getElementById('grid-btn');
+gridBtn.addEventListener('click', () => {
+  state.showGrid = !state.showGrid;
+  gridBtn.classList.toggle('active', state.showGrid);
+  drawOverlay();
+});
+
+// ─── Saved selections ─────────────────────────────────────────────
+let savedIdCounter = 0;
+
+function saveSelection() {
+  if (!state.selection) return;
+  const id = ++savedIdCounter;
+  const name = classInput.value.trim() || 'icon';
+  const entry = { id, name, ...state.selection };
+  pushUndo();
+  state.saved.push(entry);
+  state.activeSavedId = id;
+  renderSavedList();
+  drawOverlay();
+  showToast('Selection saved');
+}
+
+function renderSavedList() {
+  if (state.saved.length === 0) {
+    selList.innerHTML = '<div class="empty-state">No selections yet.<br>Click sprites to add them here.</div>';
+    return;
+  }
+  selList.innerHTML = '';
+  state.saved.forEach(s => {
+    const item = document.createElement('div');
+    item.className = 'sel-item' + (s.id === state.activeSavedId ? ' active' : '');
+    item.dataset.id = s.id;
+
+    // Mini preview canvas
+    const previewWrap = document.createElement('div');
+    previewWrap.className = 'sel-preview';
+    const pc = document.createElement('canvas');
+    const maxPre = 30;
+    const scale = Math.min(maxPre / s.w, maxPre / s.h, 1);
+    pc.width = Math.round(s.w * scale);
+    pc.height = Math.round(s.h * scale);
+    if (state.img) {
+      pc.getContext('2d').drawImage(state.img, s.x, s.y, s.w, s.h, 0, 0, pc.width, pc.height);
+    }
+    previewWrap.appendChild(pc);
+
+    const info = document.createElement('div');
+    info.className = 'sel-info';
+    info.innerHTML = `<div class="sel-name">.${s.name}</div><div class="sel-dims">${s.w}×${s.h} @ ${s.x},${s.y}</div>`;
+
+    const del = document.createElement('button');
+    del.className = 'sel-del';
+    del.title = 'Remove';
+    del.innerHTML = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="2" y1="2" x2="10" y2="10"/><line x1="10" y1="2" x2="2" y2="10"/></svg>`;
+    del.addEventListener('click', e => {
+      e.stopPropagation();
+      pushUndo();
+      state.saved = state.saved.filter(x => x.id !== s.id);
+      if (state.activeSavedId === s.id) state.activeSavedId = null;
+      renderSavedList();
+      drawOverlay();
+    });
+
+    item.append(previewWrap, info, del);
+    item.addEventListener('click', () => {
+      state.activeSavedId = s.id;
+      state.selection = { x: s.x, y: s.y, w: s.w, h: s.h };
+      updateInfo(state.selection);
+      updateCode();
+      renderSavedList();
+      drawOverlay();
+    });
+    selList.appendChild(item);
+  });
+}
+
+// Export all
+exportAllBtn.addEventListener('click', () => {
+  if (state.saved.length === 0) { showToast('No saved selections', 'var(--warn)'); return; }
+  const parts = state.saved.map(s => {
+    const tmp = { ...state.selection }; // save
+    state.selection = s;
+    const orig = classInput.value;
+    classInput.value = s.name;
+    const code = generateCode(s);
+    classInput.value = orig;
+    state.selection = tmp;
+    return `/* ${s.name} */\n${code}`;
+  });
+  navigator.clipboard.writeText(parts.join('\n\n')).then(() => showToast('All CSS copied!'));
+});
+
+// ─── Undo / Redo ──────────────────────────────────────────────────
+function snapshotState() {
+  return JSON.stringify({
+    selection: state.selection,
+    saved: state.saved,
+    activeSavedId: state.activeSavedId,
+  });
+}
+
+function pushUndo() {
+  state.undoStack.push(snapshotState());
+  state.redoStack = [];
+  updateUndoButtons();
+}
+
+function applySnapshot(snap) {
+  const s = JSON.parse(snap);
+  state.selection = s.selection;
+  state.saved = s.saved;
+  state.activeSavedId = s.activeSavedId;
+  updateInfo(state.selection);
+  updateCode();
+  renderSavedList();
+  drawOverlay();
+}
+
+document.getElementById('undo-btn').addEventListener('click', () => {
+  if (!state.undoStack.length) return;
+  state.redoStack.push(snapshotState());
+  applySnapshot(state.undoStack.pop());
+  updateUndoButtons();
+});
+document.getElementById('redo-btn').addEventListener('click', () => {
+  if (!state.redoStack.length) return;
+  state.undoStack.push(snapshotState());
+  applySnapshot(state.redoStack.pop());
+  updateUndoButtons();
+});
+
+function updateUndoButtons() {
+  document.getElementById('undo-btn').disabled = !state.undoStack.length;
+  document.getElementById('redo-btn').disabled = !state.redoStack.length;
+}
+
+document.getElementById('clear-btn').addEventListener('click', () => {
+  if (!state.selection && !state.saved.length) return;
+  pushUndo();
+  state.selection = null;
+  state.saved = [];
+  state.activeSavedId = null;
+  resetInfo();
+  updateCode();
+  renderSavedList();
+  drawOverlay();
+});
+
+// ─── Arrow key: adjacent sprite navigation ────────────────────────
+function findAdjacentSprite(dir) {
+  if (!state.selection || !state.img) return;
+  const { x, y, w, h } = state.selection;
+  const { data, w: iw, h: ih } = getPixelData();
+  const step = 4;
+  let cx, cy;
+
+  if (dir === 'right') { cx = x + w + step; cy = y + Math.floor(h/2); }
+  else if (dir === 'left') { cx = x - step; cy = y + Math.floor(h/2); }
+  else if (dir === 'down') { cx = x + Math.floor(w/2); cy = y + h + step; }
+  else { cx = x + Math.floor(w/2); cy = y - step; }
+
+  // Walk in direction to find non-transparent pixel
+  const maxSteps = 200;
+  for (let i = 0; i < maxSteps; i++) {
+    if (cx < 0 || cx >= iw || cy < 0 || cy >= ih) return;
+    if (!isTransparent(data, iw, cx, cy)) {
+      const sprite = detectSprite(cx, cy);
+      if (sprite) {
+        pushUndo();
+        state.selection = sprite;
+        updateInfo(sprite);
+        updateCode();
+        drawOverlay();
+        return;
+      }
+    }
+    if (dir === 'right') cx++;
+    else if (dir === 'left') cx--;
+    else if (dir === 'down') cy++;
+    else cy--;
+  }
+}
+
+// ─── Keyboard shortcuts ───────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  const key = e.key;
+
+  if (key === ' ') {
+    e.preventDefault();
+    state.spaceDown = true;
+    canvasPanel.style.cursor = 'grab';
+    return;
+  }
+  if ((key === 'z' || key === 'Z') && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    if (e.shiftKey) document.getElementById('redo-btn').click();
+    else document.getElementById('undo-btn').click();
+    return;
+  }
+  if (key === '+' || key === '=') { setZoom(state.zoom * 1.25); return; }
+  if (key === '-') { setZoom(state.zoom / 1.25); return; }
+  if (key === 'f' || key === 'F') { fitToWindow(); return; }
+  if (key === '1') {
+    document.getElementById('zoom-1x-btn').click(); return;
+  }
+  if (key === 'g' || key === 'G') { gridBtn.click(); return; }
+  if (key === 'o' || key === 'O') { fileInput.click(); return; }
+  if (key === 's' || key === 'S') { saveSelection(); return; }
+  if (key === 'ArrowRight') { e.preventDefault(); findAdjacentSprite('right'); return; }
+  if (key === 'ArrowLeft')  { e.preventDefault(); findAdjacentSprite('left');  return; }
+  if (key === 'ArrowDown')  { e.preventDefault(); findAdjacentSprite('down');  return; }
+  if (key === 'ArrowUp')    { e.preventDefault(); findAdjacentSprite('up');    return; }
+});
+
+document.addEventListener('keyup', e => {
+  if (e.key === ' ') {
+    state.spaceDown = false;
+    if (!state.isPanning) canvasPanel.style.cursor = 'crosshair';
+  }
+});
+
+// ─── Theme ────────────────────────────────────────────────────────
+document.getElementById('theme-btn').addEventListener('click', () => {
+  const current = document.documentElement.dataset.theme;
+  document.documentElement.dataset.theme = current === 'dark' ? 'light' : 'dark';
+});
+
+// ─── Shortcuts panel ──────────────────────────────────────────────
+const shortcutsPanel = document.getElementById('shortcuts-panel');
+document.getElementById('shortcuts-toggle-btn').addEventListener('click', () => {
+  const hidden = shortcutsPanel.style.display === 'none';
+  shortcutsPanel.style.display = hidden ? 'block' : 'none';
+});
+
+// ─── Window resize ───────────────────────────────────────────────
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    if (state.img) fitToWindow();
+  }, 150);
+});
+
+// ─── Init ────────────────────────────────────────────────────────
+updateUndoButtons();
+renderSavedList();
+</script>
+</body>
+</html>
