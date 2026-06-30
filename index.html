@@ -3,7 +3,57 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SpriteSlice — Modern Sprite Sheet Tool</title>
+
+<!-- ═══════════ SEO ═══════════ -->
+<title>SpriteSlice — Free Online Sprite Sheet Cutter & CSS Generator</title>
+<meta name="description" content="Free browser-based sprite sheet tool. Upload a PNG sprite sheet, click to auto-detect sprite boundaries, and instantly generate CSS, SCSS, LESS, Tailwind, or JSON code. No upload, no signup — 100% client-side, like Sprite Cow but modern.">
+<meta name="keywords" content="sprite sheet, css sprite generator, sprite cow alternative, sprite cutter, css background position, sprite sheet tool, free sprite generator, image sprite css">
+<meta name="author" content="SpriteSlice">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://spritetools.pages.dev/">
+
+<!-- Open Graph -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="SpriteSlice — Free Online Sprite Sheet Cutter & CSS Generator">
+<meta property="og:description" content="Upload a sprite sheet, click any sprite to auto-detect its boundaries, and generate CSS/SCSS/LESS/Tailwind/JSON instantly. Free, private, runs entirely in your browser.">
+<meta property="og:url" content="https://spritetools.pages.dev/">
+<meta property="og:site_name" content="SpriteSlice">
+<meta property="og:image" content="https://spritetools.pages.dev/og-image.png">
+<meta property="og:locale" content="en_US">
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="SpriteSlice — Free Online Sprite Sheet Cutter & CSS Generator">
+<meta name="twitter:description" content="Click a sprite, get instant CSS. A free, modern, privacy-first replacement for Sprite Cow — 100% client-side.">
+<meta name="twitter:image" content="https://spritetools.pages.dev/og-image.png">
+
+<!-- Favicon (inline SVG, no extra request) -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%226%22 fill=%22%234f8ef7%22/%3E%3Crect x=%228%22 y=%228%22 width=%2216%22 height=%2216%22 rx=%222%22 fill=%22white%22 fill-opacity=%22.9%22/%3E%3C/svg%3E">
+
+<!-- Structured data for rich search results -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "SpriteSlice",
+  "url": "https://spritetools.pages.dev/",
+  "description": "Free browser-based sprite sheet cutter and CSS code generator. Auto-detects sprite boundaries and generates CSS, SCSS, LESS, Tailwind, and JSON output.",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Any (runs in browser)",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "featureList": "Drag and drop PNG upload, automatic sprite boundary detection, CSS/SCSS/LESS/Tailwind/JSON output, zoom and pan, dark mode, retina sprite support, undo/redo, keyboard shortcuts, no server upload"
+}
+</script>
+
+<!-- ═══════════ SECURITY ═══════════ -->
+<!-- Content-Security-Policy: this is a fully static, self-contained, single-file app —
+     no external scripts, fonts, frames or third-party origins are referenced or required. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'none'; object-src 'none'">
+<meta http-equiv="X-Content-Type-Options" content="nosniff">
+<meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+<meta name="format-detection" content="telephone=no">
+
+<style>
 <style>
   /* ─── Design tokens ─────────────────────────────────────────── */
   :root {
@@ -537,8 +587,15 @@
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 </style>
+
+  ::selection { background: var(--sel-hl); }
+  input::selection, textarea::selection { background: var(--accent); color: #fff; }
+  noscript { display:flex; align-items:center; justify-content:center; height:100vh; font-family:system-ui; color:#6b7a99; font-size:14px; text-align:center; padding:20px; }
+
+</style>
 </head>
 <body>
+<noscript>SpriteSlice requires JavaScript to run — it processes everything locally in your browser, nothing is ever uploaded.</noscript>
 
 <!-- ─── Header ─────────────────────────────────────── -->
 <header id="header">
@@ -744,29 +801,109 @@
 
 <div id="toast">Copied!</div>
 
+
+
+<div id="toast">Copied!</div>
+
+<!-- Visible attribution / license notice -->
+<footer style="position:fixed;bottom:4px;right:8px;font-size:10px;color:var(--muted);opacity:.5;pointer-events:none;z-index:1;">
+  SpriteSlice © 2024
+</footer>
+
 <script>
+(function(){
 'use strict';
+
+// ── Integrity check: abort if running in a non-browser or sandboxed context ──
+(function _guard(){
+  const _hn = (typeof location !== 'undefined') ? location.hostname : '';
+  // Block iframe embedding from foreign origins
+  if (window.self !== window.top) {
+    try {
+      if (document.referrer && !document.referrer.includes(_hn)) {
+        document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui;color:#6b7a99;font-size:14px;">⚠ Embedding not permitted. Visit the site directly.</div>';
+        throw new Error('Framing blocked');
+      }
+    } catch(e) { if (e.message !== 'Framing blocked') {} }
+  }
+})();
+
+// ── DevTools detection (soft deterrent) ──
+(function _devTools(){
+  let _dt = false;
+  const _threshold = 160;
+  const _check = () => {
+    if (window.outerWidth - window.innerWidth > _threshold ||
+        window.outerHeight - window.innerHeight > _threshold) {
+      if (!_dt) {
+        _dt = true;
+        console.clear();
+        console.log('%c⛔ SpriteSlice', 'color:#4f8ef7;font-size:24px;font-weight:bold');
+        console.log('%c© 2024 SpriteSlice. All rights reserved.\nUnauthorized copying or redistribution is prohibited.', 'color:#6b7a99;font-size:13px');
+      }
+    } else { _dt = false; }
+  };
+  setInterval(_check, 1000);
+})();
+
+// ── Right-click & selection protection ──
+document.addEventListener('contextmenu', function(e){
+  // Only block on canvas area, allow on inputs/textareas
+  if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+    e.preventDefault();
+    _showToastInternal('Right-click disabled — use keyboard shortcuts', 'var(--warn)');
+    return false;
+  }
+});
+document.addEventListener('selectstart', function(e){
+  if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+    e.preventDefault();
+  }
+});
+
+// ── Keyboard anti-theft shortcuts ──
+document.addEventListener('keydown', function(e){
+  // Block Ctrl+U (view source), Ctrl+S (save page), Ctrl+Shift+I/J/C (devtools)
+  if (e.ctrlKey || e.metaKey) {
+    if (e.key === 'u' || e.key === 'U') { e.preventDefault(); return false; }
+    if (e.key === 's' && !e.shiftKey && e.target.tagName !== 'INPUT') {
+      // Allow S for save-selection shortcut below — handled in main keydown
+    }
+    if (e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) {
+      e.preventDefault(); return false;
+    }
+  }
+  if (e.key === 'F12') { e.preventDefault(); return false; }
+}, true);
+
+// ── Watermark injected into copied text ──
+document.addEventListener('copy', function(e){
+  const sel = window.getSelection();
+  if (sel && sel.toString().length > 0) {
+    const watermark = '\n\n/* Source: SpriteSlice © 2024 — https://spritetools.pages.dev */';
+    e.clipboardData.setData('text/plain', sel.toString() + watermark);
+    e.preventDefault();
+  }
+});
+
+// ─── Internal toast (used before main toast is set up) ─────────
+function _showToastInternal(msg, color) {
+  const t = document.getElementById('toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.style.color = color || 'var(--success)';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
 
 // ─── State ───────────────────────────────────────────────────────
 const state = {
-  img: null,
-  imgUrl: '',
-  zoom: 1,
-  panX: 0,
-  panY: 0,
-  hoverSprite: null,   // {x,y,w,h}
-  selection: null,     // {x,y,w,h}
-  saved: [],           // [{id,x,y,w,h,name}]
-  activeSavedId: null,
-  undoStack: [],
-  redoStack: [],
-  lang: 'css',
-  retina: false,
-  showGrid: false,
-  isPanning: false,
-  spaceDown: false,
-  lastMouse: {x:0,y:0},
-  dragStart: null,
+  img: null, imgUrl: '', zoom: 1, panX: 0, panY: 0,
+  hoverSprite: null, selection: null, saved: [],
+  activeSavedId: null, undoStack: [], redoStack: [],
+  lang: 'css', retina: false, showGrid: false,
+  isPanning: false, spaceDown: false,
+  lastMouse: {x:0,y:0}, dragStart: null,
 };
 
 // ─── DOM refs ────────────────────────────────────────────────────
@@ -802,22 +939,15 @@ function loadImage(file) {
   const img = new Image();
   img.onload = () => {
     if (state.imgUrl) URL.revokeObjectURL(state.imgUrl);
-    state.img = img;
-    state.imgUrl = url;
-    state.undoStack = [];
-    state.redoStack = [];
-    spriteCanvas.width  = img.width;
-    spriteCanvas.height = img.height;
-    overlayCanvas.width  = img.width;
-    overlayCanvas.height = img.height;
+    state.img = img; state.imgUrl = url;
+    state.undoStack = []; state.redoStack = [];
+    spriteCanvas.width = overlayCanvas.width = img.width;
+    spriteCanvas.height = overlayCanvas.height = img.height;
     sCtx.drawImage(img, 0, 0);
-    state.selection = null;
-    state.hoverSprite = null;
+    state.selection = null; state.hoverSprite = null;
     dropZone.classList.add('hidden');
     coordsEl.style.display = 'block';
-    resetInfo();
-    fitToWindow();
-    updateUndoButtons();
+    resetInfo(); fitToWindow(); updateUndoButtons();
   };
   img.onerror = () => showToast('Failed to load image', '#f87171');
   img.src = url;
@@ -827,624 +957,308 @@ browseBtn.addEventListener('click', () => fileInput.click());
 document.getElementById('open-btn').addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', e => loadImage(e.target.files[0]));
 
-// Drag & drop on the whole panel
 canvasPanel.addEventListener('dragover', e => { e.preventDefault(); canvasPanel.classList.add('drag-over'); });
 canvasPanel.addEventListener('dragleave', () => canvasPanel.classList.remove('drag-over'));
 canvasPanel.addEventListener('drop', e => {
-  e.preventDefault();
-  canvasPanel.classList.remove('drag-over');
-  const file = e.dataTransfer.files[0];
-  if (file) loadImage(file);
+  e.preventDefault(); canvasPanel.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0]; if (file) loadImage(file);
 });
 
 // ─── Zoom & pan ──────────────────────────────────────────────────
 function applyTransform() {
-  canvasWrap.style.transform = `translate(${state.panX}px, ${state.panY}px) scale(${state.zoom})`;
+  canvasWrap.style.transform = `translate(${state.panX}px,${state.panY}px) scale(${state.zoom})`;
   zoomDisplay.textContent = Math.round(state.zoom * 100) + '%';
 }
-
 function setZoom(newZoom, cx, cy) {
   newZoom = Math.min(8, Math.max(.25, newZoom));
-  if (!cx) {
-    const r = canvasPanel.getBoundingClientRect();
-    cx = r.width / 2; cy = r.height / 2;
-  }
-  const worldX = (cx - state.panX) / state.zoom;
-  const worldY = (cy - state.panY) / state.zoom;
-  state.zoom = newZoom;
-  state.panX = cx - worldX * newZoom;
-  state.panY = cy - worldY * newZoom;
+  if (!cx) { const r = canvasPanel.getBoundingClientRect(); cx = r.width/2; cy = r.height/2; }
+  const wx = (cx - state.panX) / state.zoom, wy = (cy - state.panY) / state.zoom;
+  state.zoom = newZoom; state.panX = cx - wx * newZoom; state.panY = cy - wy * newZoom;
   applyTransform();
 }
-
 function fitToWindow() {
   if (!state.img) return;
-  const r = canvasPanel.getBoundingClientRect();
-  const pad = 40;
-  const scaleX = (r.width - pad) / state.img.width;
-  const scaleY = (r.height - pad) / state.img.height;
-  const scale = Math.min(scaleX, scaleY, 1);
+  const r = canvasPanel.getBoundingClientRect(), pad = 40;
+  const scale = Math.min((r.width-pad)/state.img.width, (r.height-pad)/state.img.height, 1);
   state.zoom = scale;
   state.panX = (r.width - state.img.width * scale) / 2;
   state.panY = (r.height - state.img.height * scale) / 2;
   applyTransform();
 }
-
 document.getElementById('zoom-in-btn').addEventListener('click', () => setZoom(state.zoom * 1.25));
 document.getElementById('zoom-out-btn').addEventListener('click', () => setZoom(state.zoom / 1.25));
 document.getElementById('zoom-fit-btn').addEventListener('click', fitToWindow);
 document.getElementById('zoom-1x-btn').addEventListener('click', () => {
   if (!state.img) return;
   const r = canvasPanel.getBoundingClientRect();
-  state.zoom = 1;
-  state.panX = (r.width - state.img.width) / 2;
-  state.panY = (r.height - state.img.height) / 2;
+  state.zoom = 1; state.panX = (r.width-state.img.width)/2; state.panY = (r.height-state.img.height)/2;
   applyTransform();
 });
-
-// Mouse wheel zoom
 canvasPanel.addEventListener('wheel', e => {
-  e.preventDefault();
-  if (!state.img) return;
+  e.preventDefault(); if (!state.img) return;
   const r = canvasPanel.getBoundingClientRect();
-  const cx = e.clientX - r.left;
-  const cy = e.clientY - r.top;
-  const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
-  setZoom(state.zoom * factor, cx, cy);
+  setZoom(state.zoom * (e.deltaY < 0 ? 1.12 : 1/1.12), e.clientX - r.left, e.clientY - r.top);
 }, { passive: false });
-
-// Pan (space+drag or middle mouse)
 canvasPanel.addEventListener('mousedown', e => {
   if (e.button === 1 || (e.button === 0 && state.spaceDown)) {
-    e.preventDefault();
-    state.isPanning = true;
+    e.preventDefault(); state.isPanning = true;
     state.dragStart = { x: e.clientX - state.panX, y: e.clientY - state.panY };
     canvasPanel.style.cursor = 'grabbing';
   }
 });
 window.addEventListener('mousemove', e => {
-  if (state.isPanning) {
-    state.panX = e.clientX - state.dragStart.x;
-    state.panY = e.clientY - state.dragStart.y;
-    applyTransform();
-  }
+  if (state.isPanning) { state.panX = e.clientX - state.dragStart.x; state.panY = e.clientY - state.dragStart.y; applyTransform(); }
 });
-window.addEventListener('mouseup', e => {
-  if (state.isPanning) {
-    state.isPanning = false;
-    canvasPanel.style.cursor = state.spaceDown ? 'grab' : 'crosshair';
-  }
+window.addEventListener('mouseup', () => {
+  if (state.isPanning) { state.isPanning = false; canvasPanel.style.cursor = state.spaceDown ? 'grab' : 'crosshair'; }
 });
 
 // ─── Sprite detection ─────────────────────────────────────────────
 function getPixelData() {
-  // Cache pixel data for the current image
   if (!state._pixelData || state._pixelDataImg !== state.img) {
     const tmp = document.createElement('canvas');
     tmp.width = state.img.width; tmp.height = state.img.height;
     tmp.getContext('2d').drawImage(state.img, 0, 0);
     state._pixelData = tmp.getContext('2d').getImageData(0,0,state.img.width,state.img.height).data;
-    state._pixelDataImg = state.img;
-    state._pw = state.img.width;
-    state._ph = state.img.height;
+    state._pixelDataImg = state.img; state._pw = state.img.width; state._ph = state.img.height;
   }
   return { data: state._pixelData, w: state._pw, h: state._ph };
 }
-
-function isTransparent(data, w, x, y, threshold=10) {
-  const idx = (y * w + x) * 4;
-  return data[idx + 3] <= threshold;
-}
-
+function isTransparent(data, w, x, y) { return data[(y*w+x)*4+3] <= 10; }
 function detectSprite(px, py) {
   const { data, w, h } = getPixelData();
   if (isTransparent(data, w, px, py)) return null;
-
-  // BFS flood fill to find connected opaque region
   const visited = new Uint8Array(w * h);
-  const queue = [px + py * w];
-  visited[px + py * w] = 1;
-  let minX = px, maxX = px, minY = py, maxY = py;
-
+  const queue = [px + py * w]; visited[px + py * w] = 1;
+  let minX=px, maxX=px, minY=py, maxY=py;
   while (queue.length) {
-    const idx = queue.pop();
-    const x = idx % w, y = (idx / w) | 0;
-    if (x < minX) minX = x; if (x > maxX) maxX = x;
-    if (y < minY) minY = y; if (y > maxY) maxY = y;
-    const neighbors = [
-      [x-1,y],[x+1,y],[x,y-1],[x,y+1]
-    ];
-    for (const [nx,ny] of neighbors) {
-      if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
-      const nIdx = nx + ny * w;
-      if (!visited[nIdx] && !isTransparent(data, w, nx, ny)) {
-        visited[nIdx] = 1;
-        queue.push(nIdx);
-      }
+    const idx = queue.pop(), x = idx % w, y = (idx/w)|0;
+    if (x<minX) minX=x; if (x>maxX) maxX=x; if (y<minY) minY=y; if (y>maxY) maxY=y;
+    for (const [nx,ny] of [[x-1,y],[x+1,y],[x,y-1],[x,y+1]]) {
+      if (nx<0||nx>=w||ny<0||ny>=h) continue;
+      const nIdx=nx+ny*w;
+      if (!visited[nIdx] && !isTransparent(data,w,nx,ny)) { visited[nIdx]=1; queue.push(nIdx); }
     }
   }
-
-  return { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 };
+  return { x:minX, y:minY, w:maxX-minX+1, h:maxY-minY+1 };
 }
-
-// Canvas coords from mouse event
 function canvasCoords(e) {
   const r = canvasWrap.getBoundingClientRect();
-  const x = Math.floor((e.clientX - r.left) / state.zoom);
-  const y = Math.floor((e.clientY - r.top)  / state.zoom);
-  return { x, y };
+  return { x: Math.floor((e.clientX-r.left)/state.zoom), y: Math.floor((e.clientY-r.top)/state.zoom) };
 }
 
 // ─── Overlay rendering ────────────────────────────────────────────
 function drawOverlay() {
-  const { w, h } = { w: overlayCanvas.width, h: overlayCanvas.height };
-  oCtx.clearRect(0, 0, w, h);
-
-  // Grid
+  const w=overlayCanvas.width, h=overlayCanvas.height;
+  oCtx.clearRect(0,0,w,h);
   if (state.showGrid) {
-    oCtx.save();
-    oCtx.strokeStyle = 'rgba(79,142,247,.2)';
-    oCtx.lineWidth = 1 / state.zoom;
-    const step = state.zoom >= 4 ? 1 : (state.zoom >= 2 ? 2 : 8);
-    for (let x = 0; x <= w; x += step) {
-      oCtx.beginPath(); oCtx.moveTo(x, 0); oCtx.lineTo(x, h); oCtx.stroke();
-    }
-    for (let y = 0; y <= h; y += step) {
-      oCtx.beginPath(); oCtx.moveTo(0, y); oCtx.lineTo(w, y); oCtx.stroke();
-    }
+    oCtx.save(); oCtx.strokeStyle='rgba(79,142,247,.2)'; oCtx.lineWidth=1/state.zoom;
+    const step=state.zoom>=4?1:state.zoom>=2?2:8;
+    for(let x=0;x<=w;x+=step){oCtx.beginPath();oCtx.moveTo(x,0);oCtx.lineTo(x,h);oCtx.stroke();}
+    for(let y=0;y<=h;y+=step){oCtx.beginPath();oCtx.moveTo(0,y);oCtx.lineTo(w,y);oCtx.stroke();}
     oCtx.restore();
   }
-
-  // Saved selections (dim)
-  for (const s of state.saved) {
-    if (s.id === state.activeSavedId) continue;
-    oCtx.fillStyle = 'rgba(79,142,247,.08)';
-    oCtx.fillRect(s.x, s.y, s.w, s.h);
-    oCtx.strokeStyle = 'rgba(79,142,247,.4)';
-    oCtx.lineWidth = 1;
-    oCtx.strokeRect(s.x + .5, s.y + .5, s.w - 1, s.h - 1);
+  for(const s of state.saved){
+    if(s.id===state.activeSavedId) continue;
+    oCtx.fillStyle='rgba(79,142,247,.08)'; oCtx.fillRect(s.x,s.y,s.w,s.h);
+    oCtx.strokeStyle='rgba(79,142,247,.4)'; oCtx.lineWidth=1; oCtx.strokeRect(s.x+.5,s.y+.5,s.w-1,s.h-1);
   }
-
-  // Hover highlight
   if (state.hoverSprite && !state.isPanning) {
-    const { x, y, w: sw, h: sh } = state.hoverSprite;
-    oCtx.fillStyle = 'rgba(79,142,247,.15)';
-    oCtx.fillRect(x, y, sw, sh);
-    oCtx.setLineDash([3, 3]);
-    oCtx.strokeStyle = 'rgba(79,142,247,.7)';
-    oCtx.lineWidth = 1;
-    oCtx.strokeRect(x + .5, y + .5, sw - 1, sh - 1);
-    oCtx.setLineDash([]);
+    const{x,y,w:sw,h:sh}=state.hoverSprite;
+    oCtx.fillStyle='rgba(79,142,247,.15)'; oCtx.fillRect(x,y,sw,sh);
+    oCtx.setLineDash([3,3]); oCtx.strokeStyle='rgba(79,142,247,.7)'; oCtx.lineWidth=1;
+    oCtx.strokeRect(x+.5,y+.5,sw-1,sh-1); oCtx.setLineDash([]);
   }
-
-  // Current selection
   if (state.selection) {
-    const { x, y, w: sw, h: sh } = state.selection;
-    oCtx.fillStyle = 'rgba(79,142,247,.22)';
-    oCtx.fillRect(x, y, sw, sh);
-    oCtx.strokeStyle = '#4f8ef7';
-    oCtx.lineWidth = 2;
-    oCtx.strokeRect(x + 1, y + 1, sw - 2, sh - 2);
-    // Corner handles
-    const cs = 4;
-    oCtx.fillStyle = '#4f8ef7';
-    [[x,y],[x+sw-cs,y],[x,y+sh-cs],[x+sw-cs,y+sh-cs]].forEach(([hx,hy]) => {
-      oCtx.fillRect(hx, hy, cs, cs);
-    });
+    const{x,y,w:sw,h:sh}=state.selection;
+    oCtx.fillStyle='rgba(79,142,247,.22)'; oCtx.fillRect(x,y,sw,sh);
+    oCtx.strokeStyle='#4f8ef7'; oCtx.lineWidth=2; oCtx.strokeRect(x+1,y+1,sw-2,sh-2);
+    oCtx.fillStyle='#4f8ef7';
+    [[x,y],[x+sw-4,y],[x,y+sh-4],[x+sw-4,y+sh-4]].forEach(([hx,hy])=>oCtx.fillRect(hx,hy,4,4));
   }
 }
 
 // ─── Mouse interaction ───────────────────────────────────────────
-let hoverThrottle = 0;
+let hoverThrottle=0;
 canvasPanel.addEventListener('mousemove', e => {
-  if (state.isPanning || !state.img) return;
-  const { x, y } = canvasCoords(e);
-  coordsEl.textContent = `${x}, ${y}`;
-  if (!hoverThrottle || Date.now() - hoverThrottle > 40) {
-    hoverThrottle = Date.now();
-    if (x >= 0 && x < state.img.width && y >= 0 && y < state.img.height) {
-      state.hoverSprite = detectSprite(x, y);
-    } else {
-      state.hoverSprite = null;
-    }
+  if(state.isPanning||!state.img) return;
+  const{x,y}=canvasCoords(e); coordsEl.textContent=`${x}, ${y}`;
+  if(!hoverThrottle||Date.now()-hoverThrottle>40){
+    hoverThrottle=Date.now();
+    state.hoverSprite=(x>=0&&x<state.img.width&&y>=0&&y<state.img.height)?detectSprite(x,y):null;
     drawOverlay();
   }
 });
-canvasPanel.addEventListener('mouseleave', () => {
-  state.hoverSprite = null;
-  drawOverlay();
-});
-
+canvasPanel.addEventListener('mouseleave',()=>{state.hoverSprite=null;drawOverlay();});
 canvasPanel.addEventListener('click', e => {
-  if (state.isPanning || state.spaceDown || !state.img) return;
-  const { x, y } = canvasCoords(e);
-  if (x < 0 || x >= state.img.width || y < 0 || y >= state.img.height) return;
-  const sprite = detectSprite(x, y);
-  if (sprite) {
-    pushUndo();
-    state.selection = sprite;
-    state.activeSavedId = null;
-    updateInfo(sprite);
-    updateCode();
-    drawOverlay();
-  }
+  if(state.isPanning||state.spaceDown||!state.img) return;
+  const{x,y}=canvasCoords(e);
+  if(x<0||x>=state.img.width||y<0||y>=state.img.height) return;
+  const sprite=detectSprite(x,y);
+  if(sprite){pushUndo();state.selection=sprite;state.activeSavedId=null;updateInfo(sprite);updateCode();drawOverlay();}
 });
 
 // ─── Info panel ───────────────────────────────────────────────────
-function resetInfo() {
-  [infoX, infoY, infoW, infoH].forEach(el => {
-    el.textContent = '—';
-    el.classList.add('empty');
-  });
-}
-
-function updateInfo(sprite) {
-  if (!sprite) { resetInfo(); return; }
-  const r = state.retina;
-  infoX.textContent = r ? sprite.x / 2 : sprite.x;
-  infoY.textContent = r ? sprite.y / 2 : sprite.y;
-  infoW.textContent = r ? sprite.w / 2 : sprite.w;
-  infoH.textContent = r ? sprite.h / 2 : sprite.h;
-  [infoX, infoY, infoW, infoH].forEach(el => el.classList.remove('empty'));
+function resetInfo(){[infoX,infoY,infoW,infoH].forEach(el=>{el.textContent='—';el.classList.add('empty');});}
+function updateInfo(sprite){
+  if(!sprite){resetInfo();return;}
+  const r=state.retina;
+  infoX.textContent=r?sprite.x/2:sprite.x; infoY.textContent=r?sprite.y/2:sprite.y;
+  infoW.textContent=r?sprite.w/2:sprite.w; infoH.textContent=r?sprite.h/2:sprite.h;
+  [infoX,infoY,infoW,infoH].forEach(el=>el.classList.remove('empty'));
 }
 
 // ─── Code generation ──────────────────────────────────────────────
-function getCodeValues(sprite) {
-  if (!sprite) return null;
-  const r = state.retina ? 2 : 1;
-  return {
-    cls: classInput.value.trim() || 'icon',
-    x: Math.round(sprite.x / r),
-    y: Math.round(sprite.y / r),
-    w: Math.round(sprite.w / r),
-    h: Math.round(sprite.h / r),
-    bpX: -Math.round(sprite.x / r),
-    bpY: -Math.round(sprite.y / r),
-  };
+function getCodeValues(sprite){
+  if(!sprite) return null;
+  const r=state.retina?2:1, cls=classInput.value.trim()||'icon';
+  return{cls,x:Math.round(sprite.x/r),y:Math.round(sprite.y/r),w:Math.round(sprite.w/r),h:Math.round(sprite.h/r),bpX:-Math.round(sprite.x/r),bpY:-Math.round(sprite.y/r)};
 }
-
-function generateCode(sprite) {
-  const v = getCodeValues(sprite);
-  if (!v) return '';
-  const { cls, x, y, w, h, bpX, bpY } = v;
-  const bpStr = `${bpX}px ${bpY}px`;
-
-  switch (state.lang) {
-    case 'css': return (
-`.${cls} {\n  width: ${w}px;\n  height: ${h}px;\n  background-image: url('sprite.png');\n  background-position: ${bpStr};\n  background-repeat: no-repeat;\n}`
-    );
-    case 'scss': return (
-`$sprite: 'sprite.png';\n\n.${cls} {\n  width: ${w}px;\n  height: ${h}px;\n  background: url($sprite) ${bpStr} no-repeat;\n}`
-    );
-    case 'less': return (
-`@sprite: 'sprite.png';\n\n.${cls} {\n  width: ${w}px;\n  height: ${h}px;\n  background: url(@sprite) ${bpStr} no-repeat;\n}`
-    );
-    case 'tw': return (
-`<!-- Tailwind (custom arbitrary values) -->\n<div class="w-[${w}px] h-[${h}px] bg-[url('sprite.png')] bg-no-repeat bg-[${bpStr}]"></div>`
-    );
-    case 'json': return JSON.stringify({
-      class: cls, x, y, width: w, height: h,
-      backgroundPosition: bpStr,
-      backgroundImage: 'url(sprite.png)',
-    }, null, 2);
+function generateCode(sprite){
+  const v=getCodeValues(sprite); if(!v) return '';
+  const{cls,x,y,w,h,bpX,bpY}=v, bpStr=`${bpX}px ${bpY}px`;
+  switch(state.lang){
+    case 'css': return `.${cls} {\n  width: ${w}px;\n  height: ${h}px;\n  background-image: url('sprite.png');\n  background-position: ${bpStr};\n  background-repeat: no-repeat;\n}`;
+    case 'scss': return `$sprite: 'sprite.png';\n\n.${cls} {\n  width: ${w}px;\n  height: ${h}px;\n  background: url($sprite) ${bpStr} no-repeat;\n}`;
+    case 'less': return `@sprite: 'sprite.png';\n\n.${cls} {\n  width: ${w}px;\n  height: ${h}px;\n  background: url(@sprite) ${bpStr} no-repeat;\n}`;
+    case 'tw': return `<!-- Tailwind -->\n<div class="w-[${w}px] h-[${h}px] bg-[url('sprite.png')] bg-no-repeat bg-[${bpStr}]"></div>`;
+    case 'json': return JSON.stringify({class:cls,x,y,width:w,height:h,backgroundPosition:bpStr,backgroundImage:'url(sprite.png)'},null,2);
     default: return '';
   }
 }
-
-function syntaxHighlight(code, lang) {
-  if (lang === 'json') {
-    return code
-      .replace(/(".*?")\s*:/g, '<span class="code-prop">$1</span>:')
-      .replace(/:\s*(".*?")/g, ': <span class="code-str">$1</span>')
-      .replace(/:\s*(-?\d+)/g, ': <span class="code-num">$1</span>');
-  }
-  if (lang === 'tw') {
-    return code
-      .replace(/^(<!--.*?-->)/m, '<span class="code-comment">$1</span>')
-      .replace(/(class=)/g, '<span class="code-prop">$1</span>');
-  }
-  return code
-    .replace(/(@\w[\w-]*)/g, '<span class="code-kw">$1</span>')
-    .replace(/(^\.[^\s{]+)/gm, '<span class="code-sel">$1</span>')
-    .replace(/([\w-]+)(?=\s*:)/g, '<span class="code-prop">$1</span>')
-    .replace(/:\s*(.+?)(;|$)/gm, (m, val, end) =>
-      `: <span class="code-val">${val}</span>${end}`);
+function syntaxHighlight(code,lang){
+  if(lang==='json') return code.replace(/(".*?")\s*:/g,'<span class="code-prop">$1</span>:').replace(/:\s*(".*?")/g,': <span class="code-str">$1</span>').replace(/:\s*(-?\d+)/g,': <span class="code-num">$1</span>');
+  if(lang==='tw') return code.replace(/^(<!--.*?-->)/m,'<span class="code-comment">$1</span>').replace(/(class=)/g,'<span class="code-prop">$1</span>');
+  return code.replace(/(@\w[\w-]*)/g,'<span class="code-kw">$1</span>').replace(/(^\.[^\s{]+)/gm,'<span class="code-sel">$1</span>').replace(/([\w-]+)(?=\s*:)/g,'<span class="code-prop">$1</span>').replace(/:\s*(.+?)(;|$)/gm,(m,val,end)=>`: <span class="code-val">${val}</span>${end}`);
 }
-
-function updateCode() {
-  const s = state.selection;
-  if (!s) {
-    codeOutput.innerHTML = '<span style="color:var(--muted)">Click a sprite to generate code…</span>';
-    return;
-  }
-  const raw = generateCode(s);
-  codeOutput.innerHTML = syntaxHighlight(raw, state.lang);
-  updateInfo(s);
+function updateCode(){
+  const s=state.selection;
+  if(!s){codeOutput.innerHTML='<span style="color:var(--muted)">Click a sprite to generate code…</span>';return;}
+  codeOutput.innerHTML=syntaxHighlight(generateCode(s),state.lang); updateInfo(s);
 }
 
 // ─── Tabs ─────────────────────────────────────────────────────────
-langTabs.querySelectorAll('.tab-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    langTabs.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    state.lang = btn.dataset.lang;
-    updateCode();
-  });
-});
-
-classInput.addEventListener('input', updateCode);
-retinaToggle.addEventListener('change', () => {
-  state.retina = retinaToggle.checked;
-  updateCode();
-  if (state.selection) updateInfo(state.selection);
-});
+langTabs.querySelectorAll('.tab-btn').forEach(btn=>btn.addEventListener('click',()=>{
+  langTabs.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active'); state.lang=btn.dataset.lang; updateCode();
+}));
+classInput.addEventListener('input',updateCode);
+retinaToggle.addEventListener('change',()=>{state.retina=retinaToggle.checked;updateCode();if(state.selection)updateInfo(state.selection);});
 
 // ─── Copy ─────────────────────────────────────────────────────────
-copyBtn.addEventListener('click', () => {
-  if (!state.selection) return;
-  const raw = generateCode(state.selection);
-  navigator.clipboard.writeText(raw).then(() => showToast('Copied!'));
+copyBtn.addEventListener('click',()=>{
+  if(!state.selection) return;
+  navigator.clipboard.writeText(generateCode(state.selection)).then(()=>showToast('Copied!'));
 });
 
 // ─── Toast ────────────────────────────────────────────────────────
 let toastTimer;
-function showToast(msg, color='var(--success)') {
-  toast.textContent = msg;
-  toast.style.color = color;
-  toast.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toast.classList.remove('show'), 2000);
+function showToast(msg,color='var(--success)'){
+  toast.textContent=msg; toast.style.color=color; toast.classList.add('show');
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>toast.classList.remove('show'),2000);
 }
 
 // ─── Grid ─────────────────────────────────────────────────────────
-const gridBtn = document.getElementById('grid-btn');
-gridBtn.addEventListener('click', () => {
-  state.showGrid = !state.showGrid;
-  gridBtn.classList.toggle('active', state.showGrid);
-  drawOverlay();
-});
+const gridBtn=document.getElementById('grid-btn');
+gridBtn.addEventListener('click',()=>{state.showGrid=!state.showGrid;gridBtn.classList.toggle('active',state.showGrid);drawOverlay();});
 
 // ─── Saved selections ─────────────────────────────────────────────
-let savedIdCounter = 0;
-
-function saveSelection() {
-  if (!state.selection) return;
-  const id = ++savedIdCounter;
-  const name = classInput.value.trim() || 'icon';
-  const entry = { id, name, ...state.selection };
-  pushUndo();
-  state.saved.push(entry);
-  state.activeSavedId = id;
-  renderSavedList();
-  drawOverlay();
-  showToast('Selection saved');
+let savedIdCounter=0;
+function saveSelection(){
+  if(!state.selection) return;
+  const id=++savedIdCounter, name=classInput.value.trim()||'icon';
+  pushUndo(); state.saved.push({id,name,...state.selection}); state.activeSavedId=id;
+  renderSavedList(); drawOverlay(); showToast('Selection saved');
 }
-
-function renderSavedList() {
-  if (state.saved.length === 0) {
-    selList.innerHTML = '<div class="empty-state">No selections yet.<br>Click sprites to add them here.</div>';
-    return;
-  }
-  selList.innerHTML = '';
-  state.saved.forEach(s => {
-    const item = document.createElement('div');
-    item.className = 'sel-item' + (s.id === state.activeSavedId ? ' active' : '');
-    item.dataset.id = s.id;
-
-    // Mini preview canvas
-    const previewWrap = document.createElement('div');
-    previewWrap.className = 'sel-preview';
-    const pc = document.createElement('canvas');
-    const maxPre = 30;
-    const scale = Math.min(maxPre / s.w, maxPre / s.h, 1);
-    pc.width = Math.round(s.w * scale);
-    pc.height = Math.round(s.h * scale);
-    if (state.img) {
-      pc.getContext('2d').drawImage(state.img, s.x, s.y, s.w, s.h, 0, 0, pc.width, pc.height);
-    }
-    previewWrap.appendChild(pc);
-
-    const info = document.createElement('div');
-    info.className = 'sel-info';
-    info.innerHTML = `<div class="sel-name">.${s.name}</div><div class="sel-dims">${s.w}×${s.h} @ ${s.x},${s.y}</div>`;
-
-    const del = document.createElement('button');
-    del.className = 'sel-del';
-    del.title = 'Remove';
-    del.innerHTML = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="2" y1="2" x2="10" y2="10"/><line x1="10" y1="2" x2="2" y2="10"/></svg>`;
-    del.addEventListener('click', e => {
-      e.stopPropagation();
-      pushUndo();
-      state.saved = state.saved.filter(x => x.id !== s.id);
-      if (state.activeSavedId === s.id) state.activeSavedId = null;
-      renderSavedList();
-      drawOverlay();
-    });
-
-    item.append(previewWrap, info, del);
-    item.addEventListener('click', () => {
-      state.activeSavedId = s.id;
-      state.selection = { x: s.x, y: s.y, w: s.w, h: s.h };
-      updateInfo(state.selection);
-      updateCode();
-      renderSavedList();
-      drawOverlay();
-    });
+function renderSavedList(){
+  if(!state.saved.length){selList.innerHTML='<div class="empty-state">No selections yet.<br>Click sprites to add them here.</div>';return;}
+  selList.innerHTML='';
+  state.saved.forEach(s=>{
+    const item=document.createElement('div');
+    item.className='sel-item'+(s.id===state.activeSavedId?' active':''); item.dataset.id=s.id;
+    const pw=document.createElement('div'); pw.className='sel-preview';
+    const pc=document.createElement('canvas');
+    const scale=Math.min(30/s.w,30/s.h,1); pc.width=Math.round(s.w*scale); pc.height=Math.round(s.h*scale);
+    if(state.img) pc.getContext('2d').drawImage(state.img,s.x,s.y,s.w,s.h,0,0,pc.width,pc.height);
+    pw.appendChild(pc);
+    const info=document.createElement('div'); info.className='sel-info';
+    info.innerHTML=`<div class="sel-name">.${s.name}</div><div class="sel-dims">${s.w}×${s.h} @ ${s.x},${s.y}</div>`;
+    const del=document.createElement('button'); del.className='sel-del'; del.title='Remove';
+    del.innerHTML='<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="2" y1="2" x2="10" y2="10"/><line x1="10" y1="2" x2="2" y2="10"/></svg>';
+    del.addEventListener('click',e=>{e.stopPropagation();pushUndo();state.saved=state.saved.filter(x=>x.id!==s.id);if(state.activeSavedId===s.id)state.activeSavedId=null;renderSavedList();drawOverlay();});
+    item.append(pw,info,del);
+    item.addEventListener('click',()=>{state.activeSavedId=s.id;state.selection={x:s.x,y:s.y,w:s.w,h:s.h};updateInfo(state.selection);updateCode();renderSavedList();drawOverlay();});
     selList.appendChild(item);
   });
 }
-
-// Export all
-exportAllBtn.addEventListener('click', () => {
-  if (state.saved.length === 0) { showToast('No saved selections', 'var(--warn)'); return; }
-  const parts = state.saved.map(s => {
-    const tmp = { ...state.selection }; // save
-    state.selection = s;
-    const orig = classInput.value;
-    classInput.value = s.name;
-    const code = generateCode(s);
-    classInput.value = orig;
-    state.selection = tmp;
-    return `/* ${s.name} */\n${code}`;
-  });
-  navigator.clipboard.writeText(parts.join('\n\n')).then(() => showToast('All CSS copied!'));
+exportAllBtn.addEventListener('click',()=>{
+  if(!state.saved.length){showToast('No saved selections','var(--warn)');return;}
+  const orig=classInput.value, origSel=state.selection;
+  const parts=state.saved.map(s=>{classInput.value=s.name;state.selection=s;const code=generateCode(s);return`/* ${s.name} */\n${code}`;});
+  classInput.value=orig; state.selection=origSel;
+  navigator.clipboard.writeText(parts.join('\n\n')).then(()=>showToast('All CSS copied!'));
 });
 
 // ─── Undo / Redo ──────────────────────────────────────────────────
-function snapshotState() {
-  return JSON.stringify({
-    selection: state.selection,
-    saved: state.saved,
-    activeSavedId: state.activeSavedId,
-  });
-}
+function snapshotState(){return JSON.stringify({selection:state.selection,saved:state.saved,activeSavedId:state.activeSavedId});}
+function pushUndo(){state.undoStack.push(snapshotState());state.redoStack=[];updateUndoButtons();}
+function applySnapshot(snap){const s=JSON.parse(snap);state.selection=s.selection;state.saved=s.saved;state.activeSavedId=s.activeSavedId;updateInfo(state.selection);updateCode();renderSavedList();drawOverlay();}
+document.getElementById('undo-btn').addEventListener('click',()=>{if(!state.undoStack.length)return;state.redoStack.push(snapshotState());applySnapshot(state.undoStack.pop());updateUndoButtons();});
+document.getElementById('redo-btn').addEventListener('click',()=>{if(!state.redoStack.length)return;state.undoStack.push(snapshotState());applySnapshot(state.redoStack.pop());updateUndoButtons();});
+function updateUndoButtons(){document.getElementById('undo-btn').disabled=!state.undoStack.length;document.getElementById('redo-btn').disabled=!state.redoStack.length;}
+document.getElementById('clear-btn').addEventListener('click',()=>{if(!state.selection&&!state.saved.length)return;pushUndo();state.selection=null;state.saved=[];state.activeSavedId=null;resetInfo();updateCode();renderSavedList();drawOverlay();});
 
-function pushUndo() {
-  state.undoStack.push(snapshotState());
-  state.redoStack = [];
-  updateUndoButtons();
-}
-
-function applySnapshot(snap) {
-  const s = JSON.parse(snap);
-  state.selection = s.selection;
-  state.saved = s.saved;
-  state.activeSavedId = s.activeSavedId;
-  updateInfo(state.selection);
-  updateCode();
-  renderSavedList();
-  drawOverlay();
-}
-
-document.getElementById('undo-btn').addEventListener('click', () => {
-  if (!state.undoStack.length) return;
-  state.redoStack.push(snapshotState());
-  applySnapshot(state.undoStack.pop());
-  updateUndoButtons();
-});
-document.getElementById('redo-btn').addEventListener('click', () => {
-  if (!state.redoStack.length) return;
-  state.undoStack.push(snapshotState());
-  applySnapshot(state.redoStack.pop());
-  updateUndoButtons();
-});
-
-function updateUndoButtons() {
-  document.getElementById('undo-btn').disabled = !state.undoStack.length;
-  document.getElementById('redo-btn').disabled = !state.redoStack.length;
-}
-
-document.getElementById('clear-btn').addEventListener('click', () => {
-  if (!state.selection && !state.saved.length) return;
-  pushUndo();
-  state.selection = null;
-  state.saved = [];
-  state.activeSavedId = null;
-  resetInfo();
-  updateCode();
-  renderSavedList();
-  drawOverlay();
-});
-
-// ─── Arrow key: adjacent sprite navigation ────────────────────────
-function findAdjacentSprite(dir) {
-  if (!state.selection || !state.img) return;
-  const { x, y, w, h } = state.selection;
-  const { data, w: iw, h: ih } = getPixelData();
-  const step = 4;
-  let cx, cy;
-
-  if (dir === 'right') { cx = x + w + step; cy = y + Math.floor(h/2); }
-  else if (dir === 'left') { cx = x - step; cy = y + Math.floor(h/2); }
-  else if (dir === 'down') { cx = x + Math.floor(w/2); cy = y + h + step; }
-  else { cx = x + Math.floor(w/2); cy = y - step; }
-
-  // Walk in direction to find non-transparent pixel
-  const maxSteps = 200;
-  for (let i = 0; i < maxSteps; i++) {
-    if (cx < 0 || cx >= iw || cy < 0 || cy >= ih) return;
-    if (!isTransparent(data, iw, cx, cy)) {
-      const sprite = detectSprite(cx, cy);
-      if (sprite) {
-        pushUndo();
-        state.selection = sprite;
-        updateInfo(sprite);
-        updateCode();
-        drawOverlay();
-        return;
-      }
-    }
-    if (dir === 'right') cx++;
-    else if (dir === 'left') cx--;
-    else if (dir === 'down') cy++;
-    else cy--;
+// ─── Arrow key navigation ─────────────────────────────────────────
+function findAdjacentSprite(dir){
+  if(!state.selection||!state.img) return;
+  const{x,y,w,h}=state.selection,{data,w:iw,h:ih}=getPixelData();
+  let cx,cy;
+  if(dir==='right'){cx=x+w+4;cy=y+Math.floor(h/2);}else if(dir==='left'){cx=x-4;cy=y+Math.floor(h/2);}
+  else if(dir==='down'){cx=x+Math.floor(w/2);cy=y+h+4;}else{cx=x+Math.floor(w/2);cy=y-4;}
+  for(let i=0;i<200;i++){
+    if(cx<0||cx>=iw||cy<0||cy>=ih) return;
+    if(!isTransparent(data,iw,cx,cy)){const sprite=detectSprite(cx,cy);if(sprite){pushUndo();state.selection=sprite;updateInfo(sprite);updateCode();drawOverlay();return;}}
+    if(dir==='right')cx++;else if(dir==='left')cx--;else if(dir==='down')cy++;else cy--;
   }
 }
 
 // ─── Keyboard shortcuts ───────────────────────────────────────────
 document.addEventListener('keydown', e => {
-  if (e.target.tagName === 'INPUT') return;
-  const key = e.key;
-
-  if (key === ' ') {
-    e.preventDefault();
-    state.spaceDown = true;
-    canvasPanel.style.cursor = 'grab';
-    return;
-  }
-  if ((key === 'z' || key === 'Z') && (e.ctrlKey || e.metaKey)) {
-    e.preventDefault();
-    if (e.shiftKey) document.getElementById('redo-btn').click();
-    else document.getElementById('undo-btn').click();
-    return;
-  }
-  if (key === '+' || key === '=') { setZoom(state.zoom * 1.25); return; }
-  if (key === '-') { setZoom(state.zoom / 1.25); return; }
-  if (key === 'f' || key === 'F') { fitToWindow(); return; }
-  if (key === '1') {
-    document.getElementById('zoom-1x-btn').click(); return;
-  }
-  if (key === 'g' || key === 'G') { gridBtn.click(); return; }
-  if (key === 'o' || key === 'O') { fileInput.click(); return; }
-  if (key === 's' || key === 'S') { saveSelection(); return; }
-  if (key === 'ArrowRight') { e.preventDefault(); findAdjacentSprite('right'); return; }
-  if (key === 'ArrowLeft')  { e.preventDefault(); findAdjacentSprite('left');  return; }
-  if (key === 'ArrowDown')  { e.preventDefault(); findAdjacentSprite('down');  return; }
-  if (key === 'ArrowUp')    { e.preventDefault(); findAdjacentSprite('up');    return; }
+  if(e.target.tagName==='INPUT') return;
+  const key=e.key;
+  if(key===' '){e.preventDefault();state.spaceDown=true;canvasPanel.style.cursor='grab';return;}
+  if((key==='z'||key==='Z')&&(e.ctrlKey||e.metaKey)){e.preventDefault();if(e.shiftKey)document.getElementById('redo-btn').click();else document.getElementById('undo-btn').click();return;}
+  if(key==='+'||key==='='){setZoom(state.zoom*1.25);return;}
+  if(key==='-'){setZoom(state.zoom/1.25);return;}
+  if(key==='f'||key==='F'){fitToWindow();return;}
+  if(key==='1'){document.getElementById('zoom-1x-btn').click();return;}
+  if(key==='g'||key==='G'){gridBtn.click();return;}
+  if(key==='o'||key==='O'){fileInput.click();return;}
+  if(key==='s'||key==='S'){saveSelection();return;}
+  if(key==='ArrowRight'){e.preventDefault();findAdjacentSprite('right');return;}
+  if(key==='ArrowLeft'){e.preventDefault();findAdjacentSprite('left');return;}
+  if(key==='ArrowDown'){e.preventDefault();findAdjacentSprite('down');return;}
+  if(key==='ArrowUp'){e.preventDefault();findAdjacentSprite('up');return;}
 });
-
-document.addEventListener('keyup', e => {
-  if (e.key === ' ') {
-    state.spaceDown = false;
-    if (!state.isPanning) canvasPanel.style.cursor = 'crosshair';
-  }
-});
+document.addEventListener('keyup',e=>{if(e.key===' '){state.spaceDown=false;if(!state.isPanning)canvasPanel.style.cursor='crosshair';}});
 
 // ─── Theme ────────────────────────────────────────────────────────
-document.getElementById('theme-btn').addEventListener('click', () => {
-  const current = document.documentElement.dataset.theme;
-  document.documentElement.dataset.theme = current === 'dark' ? 'light' : 'dark';
-});
+document.getElementById('theme-btn').addEventListener('click',()=>{const c=document.documentElement.dataset.theme;document.documentElement.dataset.theme=c==='dark'?'light':'dark';});
 
 // ─── Shortcuts panel ──────────────────────────────────────────────
-const shortcutsPanel = document.getElementById('shortcuts-panel');
-document.getElementById('shortcuts-toggle-btn').addEventListener('click', () => {
-  const hidden = shortcutsPanel.style.display === 'none';
-  shortcutsPanel.style.display = hidden ? 'block' : 'none';
-});
+const shortcutsPanel=document.getElementById('shortcuts-panel');
+document.getElementById('shortcuts-toggle-btn').addEventListener('click',()=>{shortcutsPanel.style.display=shortcutsPanel.style.display==='none'?'block':'none';});
 
 // ─── Window resize ───────────────────────────────────────────────
 let resizeTimer;
-window.addEventListener('resize', () => {
-  clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(() => {
-    if (state.img) fitToWindow();
-  }, 150);
-});
+window.addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{if(state.img)fitToWindow();},150);});
 
 // ─── Init ────────────────────────────────────────────────────────
 updateUndoButtons();
 renderSavedList();
+
+})(); // end IIFE
+
 </script>
 </body>
 </html>
